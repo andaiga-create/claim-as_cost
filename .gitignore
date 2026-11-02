@@ -2,3 +2,4 @@ data/
 *.xls
 *.xlsx
 __pycache__/
+design/
