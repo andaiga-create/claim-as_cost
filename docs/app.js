@@ -43,8 +43,8 @@ function skeleton() {
 async function init() {
   skeleton();
   const [d, s] = await Promise.all([
-    fetch('data.json').then(r => r.json()),
-    fetch('settings.json').then(r => r.json()).catch(() => ({}))]);
+    fetch('data.json', { cache: 'no-cache' }).then(r => r.json()),
+    fetch('settings.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => ({}))]);
   DATA = d; SET = s;
   ROWS = d.rows.map(r => { const o = {}; d.dims.forEach((k, i) => o[k] = r[i]); o.v = r[d.dims.length]; o.n = r[d.dims.length + 1]; return o; });
   REC = d.receipts.map(r => ({ y: r[0], m: r[1], k: r[2], p: r[3], n: r[4] }));
