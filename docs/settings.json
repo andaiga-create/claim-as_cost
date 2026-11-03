@@ -11,7 +11,7 @@
     "2026": 24497611317
   },
   "kpi": {
-    "2026": { "cost_target": null, "ratio_target": null },
+    "2026": { "cost_target": null, "ratio_target": 0.007 },
     "2025": { "cost_target": null, "ratio_target": null }
   }
 }
