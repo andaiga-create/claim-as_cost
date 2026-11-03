@@ -7,7 +7,10 @@ body{font-family:'Pretendard Variable',Pretendard,'Malgun Gothic',sans-serif;bac
 .brand b{display:block;font-size:17px;font-weight:800;letter-spacing:-.02em}
 .brand small{color:var(--mute);font-size:12px}
 .logo{width:34px;height:34px;border-radius:10px;background:var(--logo)}
-#slicers{flex:1;min-height:0;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+#slicers{display:flex;flex-direction:column;gap:14px}
+.side{overflow:visible}
+.grp.dd{position:relative;margin-top:14px}
+.foot{margin-top:auto}
 .grp .gh{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:700;color:var(--mute);letter-spacing:.04em;margin-bottom:7px;text-transform:uppercase}
 .grp .gh a{cursor:pointer;opacity:0;font-size:11px;padding:0 4px}
 .grp .gh a.on{opacity:.8}
@@ -44,3 +47,16 @@ header p{color:var(--mute);margin-top:3px;font-size:13px}
 --c1:#4f46e5;--c2:#f97316;--c3:#cbd2de;--prior:#8b94a7;--ok:#16a34a;--bad:#e11d48;--chip:#f3f5f9;--chipline:#e6eaf1;--onc1:#fff;
 --rad:18px;--chiprad:999px;--shadow:0 1px 2px rgba(20,26,38,.04),0 8px 24px rgba(20,26,38,.05);--logo:linear-gradient(135deg,#6366f1,#8b5cf6);--numfont:inherit}
 .kpi.hero{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}.kpi.hero .t,.kpi.hero .s,.kpi.hero .v em{color:rgba(255,255,255,.8)}
+
+.ddbtn{width:100%;display:flex;justify-content:space-between;align-items:center;font:inherit;font-size:13px;font-weight:600;color:var(--ink2);background:var(--chip);border:1px solid var(--chipline);border-radius:12px;padding:8px 12px;cursor:pointer}
+.ddbtn.on{border-color:var(--c1);color:var(--c1)}
+.ddbtn i{font-style:normal;color:var(--mute)}
+.ddpanel{position:absolute;z-index:20;left:0;right:0;top:calc(100% + 6px);background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(20,26,38,.18);padding:10px}
+.ddpanel input[type=text],.ddpanel #ddSearch{width:100%;font:inherit;font-size:13px;border:1px solid var(--chipline);background:var(--chip);color:var(--ink);border-radius:8px;padding:6px 10px;margin-bottom:8px;outline:none}
+.ddlist{max-height:min(300px,45vh);overflow-y:auto;display:flex;flex-direction:column}
+.ddlist label{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;font-size:13px}
+.ddlist label:hover{background:var(--chip)}
+.ddlist input{accent-color:var(--c1);width:15px;height:15px}
+.ddfoot{display:flex;gap:6px;margin-top:8px;border-top:1px solid var(--line);padding-top:8px}
+.ddfoot button{flex:1;font:inherit;font-size:12px;font-weight:600;border:1px solid var(--chipline);background:var(--chip);color:var(--ink2);border-radius:8px;padding:5px;cursor:pointer}
+.grp.dd .gh a{cursor:pointer}

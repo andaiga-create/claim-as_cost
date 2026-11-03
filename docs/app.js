@@ -3,8 +3,10 @@ const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).
 const KINDS = ['A/S', 'CLAIM', '미분류'];
 const SHOT = location.search.includes('shot');
 let ROWS = [], REC = [], DATA, SET, charts = {}, latestY, latestM;
-const SEL = { 연: new Set(), 유무상: new Set(['무상']), 구분: new Set(), 고객: new Set(), 선종: new Set() };
+const DEFAULTS = () => ({ 연: new Set([latestY]), 유무상: new Set(['무상']), 구분: new Set(['A/S', 'CLAIM']), 고객: new Set(), 선종: new Set(['상선', '특수선']) });
+let SEL = { 연: new Set(), 유무상: new Set(), 구분: new Set(), 고객: new Set(), 선종: new Set() };
 const GROUPS = [['연', '연도'], ['유무상', '유/무상'], ['구분', '구분'], ['선종', '선종'], ['고객', '고객']];
+const CHIP_GROUPS = GROUPS.filter(([g]) => g !== '고객');
 
 const fmt = v => { const a = Math.abs(v); return a >= 1e8 ? (v / 1e8).toFixed(2) + '억' : a >= 1e4 ? Math.round(v / 1e4).toLocaleString() + '만' : Math.round(v).toLocaleString(); };
 const pct = (v, d = 1) => (v * 100).toFixed(d) + '%';
@@ -17,6 +19,7 @@ function skeleton() {
     <aside class="side">
       <div class="brand"><span class="logo"></span><div><b>CLAIM·AS</b><small>비용 대시보드</small></div></div>
       <div id="slicers"></div>
+      <div class="grp dd" id="custDD"></div>
       <div class="foot" id="foot"></div>
     </aside>
     <main>
@@ -46,8 +49,9 @@ async function init() {
   ROWS = d.rows.map(r => { const o = {}; d.dims.forEach((k, i) => o[k] = r[i]); o.v = r[d.dims.length]; o.n = r[d.dims.length + 1]; return o; });
   REC = d.receipts.map(r => ({ y: r[0], m: r[1], k: r[2], p: r[3], n: r[4] }));
   [latestY, latestM] = d.latest.split('-').map(Number);
-  SEL.연.add(latestY);
-  $('#reset').onclick = () => { Object.values(SEL).forEach(s => s.clear()); SEL.연.add(latestY); SEL.유무상.add('무상'); render(); };
+  SEL = DEFAULTS();
+  buildCustDD();
+  $('#reset').onclick = () => { SEL = DEFAULTS(); render(); };
   $('#foot').innerHTML = `데이터 기준일<br><b>${d.latest}</b><br>갱신 ${d.generated}`;
   Chart.defaults.font.family = 'Pretendard Variable, Pretendard, "Malgun Gothic", sans-serif';
   if (SHOT) Chart.defaults.animation = false;
@@ -66,8 +70,8 @@ function options(g) {
   return keys.map(k => [g === '연' ? +k : k, k]);
 }
 function renderSlicers() {
-  $('#slicers').innerHTML = GROUPS.map(([g, label]) => `
-    <div class="grp ${g === '고객' ? 'tall' : ''}"><div class="gh"><span>${label}</span>
+  $('#slicers').innerHTML = CHIP_GROUPS.map(([g, label]) => `
+    <div class="grp"><div class="gh"><span>${label}</span>
       <a data-clear="${g}" class="${SEL[g].size ? 'on' : ''}" title="선택 해제">✕</a></div>
       <div class="chips">${options(g).map(([v, t]) => `<button class="chip ${SEL[g].has(v) ? 'on' : ''}" data-g="${g}" data-v="${v}">${t}${g === '연' ? '년' : ''}</button>`).join('')}</div></div>`).join('');
   document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
@@ -76,6 +80,29 @@ function renderSlicers() {
   });
   document.querySelectorAll('[data-clear]').forEach(a => a.onclick = () => { SEL[a.dataset.clear].clear(); render(); });
 }
+function buildCustDD() {
+  const box = $('#custDD'), opts = options('고객').map(o => o[0]);
+  box.innerHTML = `<div class="gh"><span>고객</span><a id="custClear" title="선택 해제">✕</a></div>
+    <button class="ddbtn" id="ddBtn"><span id="ddLabel">전체</span><i>▾</i></button>
+    <div class="ddpanel" id="ddPanel" hidden>
+      <input id="ddSearch" placeholder="고객 검색">
+      <div class="ddlist" id="ddList">${opts.map(v => `<label data-v="${v}"><input type="checkbox" value="${v}"><span>${v}</span></label>`).join('')}</div>
+      <div class="ddfoot"><button id="ddAll">전체 선택</button><button id="ddNone">선택 해제</button></div></div>`;
+  $('#ddBtn').onclick = e => { e.stopPropagation(); const p = $('#ddPanel'); p.hidden = !p.hidden; if (!p.hidden) $('#ddSearch').focus(); };
+  document.addEventListener('click', e => { if (!box.contains(e.target)) $('#ddPanel').hidden = true; });
+  $('#ddSearch').oninput = e => { const q = e.target.value.trim().toLowerCase(); document.querySelectorAll('#ddList label').forEach(l => l.style.display = l.dataset.v.toLowerCase().includes(q) ? '' : 'none'); };
+  $('#ddList').onchange = e => { const v = e.target.value; e.target.checked ? SEL.고객.add(v) : SEL.고객.delete(v); render(); };
+  $('#ddAll').onclick = () => { opts.forEach(v => SEL.고객.add(v)); render(); };
+  $('#ddNone').onclick = () => { SEL.고객.clear(); render(); };
+  $('#custClear').onclick = () => { SEL.고객.clear(); render(); };
+}
+function syncCustDD() {
+  const sel = [...SEL.고객];
+  $('#ddLabel').textContent = !sel.length ? '전체' : sel.length <= 2 ? sel.join(', ') : `${sel[0]} 외 ${sel.length - 1}`;
+  $('#ddBtn').classList.toggle('on', sel.length > 0);
+  $('#custClear').className = sel.length ? 'on' : '';
+  document.querySelectorAll('#ddList input').forEach(i => i.checked = SEL.고객.has(i.value));
+}
 const pass = (r, skipYear) => (skipYear || !SEL.연.size || SEL.연.has(r.연)) && (!SEL.유무상.size || SEL.유무상.has(r.유무상)) &&
   (!SEL.구분.size || SEL.구분.has(r.구분)) && (!SEL.고객.size || SEL.고객.has(r.고객)) && (!SEL.선종.size || SEL.선종.has(r.선종));
 const group = (rows, kf) => { const m = new Map(); rows.forEach(r => { const k = kf(r); m.set(k, (m.get(k) || 0) + r.v); }); return m; };
@@ -83,6 +110,7 @@ const avg3 = y => { const rev = SET.revenue || {}; const v = [y - 2, y - 1, y].m
 
 function render() {
   renderSlicers();
+  syncCustDD();
   const years = SEL.연.size ? [...SEL.연] : [latestY];
   const Y = Math.max(...years);
   const cut = y => y === latestY ? latestM : 12;
@@ -125,7 +153,9 @@ function mk(id, cfg) {
   Chart.defaults.color = css('--mute'); Chart.defaults.borderColor = css('--grid');
   cfg.options = Object.assign({ responsive: true, maintainAspectRatio: false }, cfg.options);
   cfg.options.plugins = Object.assign({ legend: { position: 'bottom', labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, font: { size: 11 } } },
-    tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${Math.round(c.parsed.y ?? c.parsed.x).toLocaleString()}원` } } }, cfg.options.plugins);
+    tooltip: { mode: 'index', intersect: false, callbacks: {
+      label: c => { const v = c.chart.options.indexAxis === 'y' ? c.parsed.x : c.parsed.y; return v == null ? null : ` ${c.dataset.label}: ${Math.round(v).toLocaleString()}원`; },
+      footer: items => { const bars = items.filter(i => i.dataset.stack); if (bars.length < 2) return ''; return '합계: ' + Math.round(bars.reduce((a, i) => a + (i.chart.options.indexAxis === 'y' ? i.parsed.x : i.parsed.y || 0), 0)).toLocaleString() + '원'; } } } }, cfg.options.plugins);
   charts[id] = new Chart(document.getElementById(id), cfg);
 }
 const yA = () => ({ ticks: { callback: v => fmt(v) }, grid: { color: css('--grid') }, border: { display: false } });
