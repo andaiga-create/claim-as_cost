@@ -140,8 +140,6 @@ function kpis(Y, years, cur, prv, curY, cutM) {
   $('#kpis').innerHTML = [
     K('총 비용', fmt(c) + '<em>원</em>', `${sum(cur, r => r.n).toLocaleString()}건 · ${years.length > 1 ? years.length + '개 연도 합산' : Y + '년'}`, '', 'hero'),
     K(`전년(${Y - 1}) 동기 대비`, delta == null ? '-' : `<span class="${delta > 0 ? 'up' : 'down'}">${delta > 0 ? '▲' : '▼'} ${pct(Math.abs(delta))}</span>`, `전년 ${fmt(p)}원`),
-    tgt.cost_target ? K('연간 목표 달성', pct(cy / tgt.cost_target, 0), `목표 ${fmt(tgt.cost_target)}원`, bar(cy / tgt.cost_target, cy > tgt.cost_target))
-      : K('연간 목표', '미설정', 'settings.json 에서 입력'),
     rev ? K('매출 대비 비용', pct(cy / rev, 2), tgt.ratio_target ? `목표 ${pct(tgt.ratio_target, 2)}` : `매출 ${fmt(rev)}원`, tgt.ratio_target ? bar(cy / rev / tgt.ratio_target, cy / rev > tgt.ratio_target) : '') : K('매출 대비 비용', '-', '매출 미입력'),
     K('CLAIM 비중', c ? pct(claim / c) : '-', `CLAIM ${fmt(claim)}원`),
     K('접수 건수', sum(rc, r => r.n).toLocaleString() + '<em>건</em>', `A/S ${sum(rc.filter(r => r.k.includes('A/S')), r => r.n)} · CLAIM ${sum(rc.filter(r => r.k.includes('CLAIM')), r => r.n)}`)
