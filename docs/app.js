@@ -150,8 +150,10 @@ function mk(id, cfg) {
   charts[id]?.destroy();
   Chart.defaults.color = css('--mute'); Chart.defaults.borderColor = css('--grid');
   cfg.options = Object.assign({ responsive: true, maintainAspectRatio: false }, cfg.options);
+  // 가로 막대는 y축(항목) 기준으로 가장 가까운 항목을 잡아야 마우스 위치와 툴팁이 일치한다
+  cfg.options.interaction = { mode: 'index', axis: cfg.options.indexAxis === 'y' ? 'y' : 'x', intersect: false };
   cfg.options.plugins = Object.assign({ legend: { position: 'bottom', labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, font: { size: 11 } } },
-    tooltip: { mode: 'index', intersect: false, callbacks: {
+    tooltip: { callbacks: {
       label: c => { const v = c.chart.options.indexAxis === 'y' ? c.parsed.x : c.parsed.y; return v == null ? null : ` ${c.dataset.label}: ${Math.round(v).toLocaleString()}원`; },
       footer: items => { const bars = items.filter(i => i.dataset.stack); if (bars.length < 2) return ''; return '합계: ' + Math.round(bars.reduce((a, i) => a + (i.chart.options.indexAxis === 'y' ? i.parsed.x : i.parsed.y || 0), 0)).toLocaleString() + '원'; } } } }, cfg.options.plugins);
   charts[id] = new Chart(document.getElementById(id), cfg);
