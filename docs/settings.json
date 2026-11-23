@@ -1,6 +1,6 @@
 {
   "_설명": "연도별 매출액(원)과 KPI 목표를 수정한 뒤 update.bat 으로 올리면 대시보드에 반영됩니다. 목표를 쓰지 않으려면 null.",
-  "lookup_mode": "excel",
+  "lookup_mode": "exact",
   "ratio_basis": "avg3",
   "revenue": {
     "2020": 18568649393,
