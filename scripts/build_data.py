@@ -15,7 +15,8 @@ OUT = os.path.join(ROOT, "docs", "data.json")
 
 
 def read_xls(path):
-    return pd.read_excel(path, dtype=str)
+    # xlrd 의 'OLE2 inconsistency' 경고(파일은 정상)를 숨긴다
+    return pd.read_excel(path, dtype=str, engine_kwargs={"logfile": open(os.devnull, "w")})
 
 
 def month_of(path):
