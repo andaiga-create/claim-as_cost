@@ -45,6 +45,8 @@ def load_raw():
             df = df[df["_dt"].dt.strftime("%Y%m") != ym]
         df = pd.concat([df, d], ignore_index=True)
     df["공급가"] = pd.to_numeric(df["공급가"].str.replace(",", ""), errors="coerce").fillna(0)
+    # A/S번호 하이픈 누락 보정: 20261006005 -> 20261006-005 (원본 xls 는 수정하지 않음)
+    df["A/S번호"] = df["A/S번호"].str.strip().str.replace(r"^(\d{8})(\d{3})$", r"\1-\2", regex=True)
     return df
 
 
