@@ -3,9 +3,9 @@ const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).
 const KINDS = ['A/S', 'CLAIM', '미분류'];
 const SHOT = location.search.includes('shot');
 let ROWS = [], REC = [], DATA, SET, charts = {}, latestY, latestM;
-const DEFAULTS = () => ({ 연: new Set([latestY]), 유무상: new Set(['무상']), 구분: new Set(['A/S', 'CLAIM']), 고객: new Set(), 선종: new Set(['상선', '특수선']) });
-let SEL = { 연: new Set(), 유무상: new Set(), 구분: new Set(), 고객: new Set(), 선종: new Set() };
-const GROUPS = [['연', '연도'], ['유무상', '유/무상'], ['구분', '구분'], ['선종', '선종'], ['고객', '고객']];
+const DEFAULTS = () => ({ 연: new Set([latestY]), 월: new Set(), 유무상: new Set(['무상']), 구분: new Set(['A/S', 'CLAIM']), 고객: new Set(), 선종: new Set(['상선', '특수선']) });
+let SEL = { 연: new Set(), 월: new Set(), 유무상: new Set(), 구분: new Set(), 고객: new Set(), 선종: new Set() };
+const GROUPS = [['연', '연도'], ['월', '월'], ['유무상', '유/무상'], ['구분', '구분'], ['선종', '선종'], ['고객', '고객']];
 const CHIP_GROUPS = GROUPS.filter(([g]) => g !== '고객');
 
 const fmt = v => { const a = Math.abs(v); return a >= 1e8 ? (v / 1e8).toFixed(2) + '억' : a >= 1e4 ? Math.round(v / 1e4).toLocaleString() + '만' : Math.round(v).toLocaleString(); };
@@ -59,6 +59,7 @@ async function init() {
 }
 
 function options(g) {
+  if (g === '월') return [...Array(12)].map((_, i) => [i + 1, i + 1]);
   const tot = {};
   ROWS.forEach(r => { const k = r[g]; if (k !== '' && k != null) tot[k] = (tot[k] || 0) + r.v; });
   let keys = Object.keys(tot);
@@ -70,12 +71,13 @@ function options(g) {
   return keys.map(k => [g === '연' ? +k : k, k]);
 }
 function renderSlicers() {
+  const avail = availMonths();
   $('#slicers').innerHTML = CHIP_GROUPS.map(([g, label]) => `
-    <div class="grp"><div class="gh"><span>${label}</span>
+    <div class="grp g-${g}"><div class="gh"><span>${label}</span>
       <a data-clear="${g}" class="${SEL[g].size ? 'on' : ''}" title="선택 해제">✕</a></div>
-      <div class="chips">${options(g).map(([v, t]) => `<button class="chip ${SEL[g].has(v) ? 'on' : ''}" data-g="${g}" data-v="${v}">${t}${g === '연' ? '년' : ''}</button>`).join('')}</div></div>`).join('');
+      <div class="chips">${options(g).map(([v, t]) => `<button class="chip ${SEL[g].has(v) ? 'on' : ''}" data-g="${g}" data-v="${v}" ${g === '월' && !avail.has(v) ? 'disabled' : ''}>${t}${g === '연' ? '년' : g === '월' ? '월' : ''}</button>`).join('')}</div></div>`).join('');
   document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
-    const g = b.dataset.g, v = g === '연' ? +b.dataset.v : b.dataset.v;
+    const g = b.dataset.g, v = (g === '연' || g === '월') ? +b.dataset.v : b.dataset.v;
     SEL[g].has(v) ? SEL[g].delete(v) : SEL[g].add(v); render();
   });
   document.querySelectorAll('[data-clear]').forEach(a => a.onclick = () => { SEL[a.dataset.clear].clear(); render(); });
@@ -103,12 +105,21 @@ function syncCustDD() {
   $('#custClear').className = sel.length ? 'on' : '';
   document.querySelectorAll('#ddList input').forEach(i => i.checked = SEL.고객.has(i.value));
 }
-const pass = (r, skipYear) => (skipYear || !SEL.연.size || SEL.연.has(r.연)) && (!SEL.유무상.size || SEL.유무상.has(r.유무상)) &&
+// 선택된 연도(없으면 최신 연도)에 데이터가 있는 월 — 월 버튼 활성화 기준 (연도와 연동)
+const selYears = () => SEL.연.size ? [...SEL.연] : [latestY];
+function availMonths() {
+  const ys = selYears(), m = new Set();
+  ROWS.forEach(r => { if (ys.includes(r.연) && !(r.연 === latestY && r.월 > latestM)) m.add(r.월); });
+  return m;
+}
+const pass = (r, skipYear, skipMonth) => (skipYear || !SEL.연.size || SEL.연.has(r.연)) && (skipMonth || !SEL.월.size || SEL.월.has(r.월)) && (!SEL.유무상.size || SEL.유무상.has(r.유무상)) &&
   (!SEL.구분.size || SEL.구분.has(r.구분)) && (!SEL.고객.size || SEL.고객.has(r.고객)) && (!SEL.선종.size || SEL.선종.has(r.선종));
 const group = (rows, kf) => { const m = new Map(); rows.forEach(r => { const k = kf(r); m.set(k, (m.get(k) || 0) + r.v); }); return m; };
 const avg3 = y => { const rev = SET.revenue || {}; const v = [y - 2, y - 1, y].map(k => rev[k]).filter(x => x != null); return v.length ? sum(v, x => x) / v.length : null; };
 
 function render() {
+  const av = availMonths();
+  [...SEL.월].forEach(m => { if (!av.has(m)) SEL.월.delete(m); });   // 연도를 바꿔 데이터가 없어진 월은 선택 해제
   renderSlicers();
   syncCustDD();
   const years = SEL.연.size ? [...SEL.연] : [latestY];
@@ -117,13 +128,15 @@ function render() {
   const cur = ROWS.filter(r => pass(r) && years.includes(r.연) && r.월 <= cut(r.연));
   const prv = ROWS.filter(r => pass(r, true) && r.연 === Y - 1 && r.월 <= cut(Y));
   const curY = ROWS.filter(r => pass(r, true) && r.연 === Y && r.월 <= cut(Y));
-  const base = ROWS.filter(r => pass(r, true));
-  const act = GROUPS.filter(([g]) => g !== '연' && SEL[g].size).map(([g, l]) => `${l}: ${[...SEL[g]].join(', ')}`);
-  $('#sub').textContent = `${[...years].sort().join(', ')}년${years.length === 1 && Y === latestY ? ` 1~${latestM}월` : ''}` + (act.length ? ' · ' + act.join(' · ') : ' · 전체 조건');
+  const base = ROWS.filter(r => pass(r, true));             // 연도 필터 제외, 월 필터 적용 (연도별 동월 비교)
+  const baseAllM = ROWS.filter(r => pass(r, true, true));   // 월 추이 차트용: 월 필터 제외
+  const act = GROUPS.filter(([g]) => g !== '연' && g !== '월' && SEL[g].size).map(([g, l]) => `${l}: ${[...SEL[g]].join(', ')}`);
+  const mTxt = SEL.월.size ? ` ${[...SEL.월].sort((a, b) => a - b).join(', ')}월` : (years.length === 1 && Y === latestY ? ` 1~${latestM}월` : '');
+  $('#sub').textContent = `${[...years].sort().join(', ')}년${mTxt}` + (act.length ? ' · ' + act.join(' · ') : ' · 전체 조건');
   kpis(Y, years, cur, prv, curY, cut(Y));
   yearChart(base, years);
-  monthChart(Y, base, cut(Y));
-  cumChart(Y, base, cut(Y));
+  monthChart(Y, baseAllM, cut(Y));
+  cumChart(Y, baseAllM, cut(Y));
   rank('cDefect', cur, r => r.불량명칭, 9);
   rank('cEquip', cur, r => r.장비 || '(없음)', 10);
   rank('cVendor', cur, r => r.거래처명 || '(없음)', 10);
@@ -134,7 +147,7 @@ function kpis(Y, years, cur, prv, curY, cutM) {
   const c = sum(cur, r => r.v), cy = sum(curY, r => r.v), p = sum(prv, r => r.v), claim = sum(cur.filter(r => r.구분 === 'CLAIM'), r => r.v);
   const delta = p ? (cy - p) / p : null, tgt = (SET.kpi || {})[Y] || {};
   const rev = SET.ratio_basis === 'year' ? (SET.revenue || {})[Y] : avg3(Y);
-  const rc = REC.filter(r => years.includes(r.y) && r.m <= (r.y === latestY ? latestM : 12) && (!SEL.유무상.size || SEL.유무상.has(r.p)));
+  const rc = REC.filter(r => years.includes(r.y) && r.m <= (r.y === latestY ? latestM : 12) && (!SEL.월.size || SEL.월.has(r.m)) && (!SEL.유무상.size || SEL.유무상.has(r.p)));
   const bar = (v, over) => `<div class="bar"><i class="${over ? 'over' : ''}" style="width:${Math.min(v, 1) * 100}%"></i></div>`;
   const K = (t, v, s, x = '', cls = '') => `<div class="kpi card ${cls}"><span class="t">${t}</span><b class="v">${v}</b><span class="s">${s}</span>${x}</div>`;
   $('#kpis').innerHTML = [
@@ -172,7 +185,7 @@ function monthChart(Y, base, cutM) {
   document.getElementById('tMonth').textContent = `${Y}년 월별 비용 vs ${Y - 1}년`;
   const C = colors(), cy = base.filter(r => r.연 === Y), L = [...Array(12)].map((_, i) => (i + 1) + '월');
   mk('cMonth', { data: { labels: L, datasets: [
-    ...KINDS.map(k => ({ type: 'bar', label: k, stack: 's', backgroundColor: C[k], borderRadius: k === 'CLAIM' ? 4 : 0, data: sumBy(cy.filter(r => r.구분 === k)).map((v, i) => i < cutM ? v : null) })),
+    ...KINDS.map(k => ({ type: 'bar', label: k, stack: 's', backgroundColor: L.map((_, i) => !SEL.월.size || SEL.월.has(i + 1) ? C[k] : C[k] + '44'), borderRadius: k === 'CLAIM' ? 4 : 0, data: sumBy(cy.filter(r => r.구분 === k)).map((v, i) => i < cutM ? v : null) })),
     { type: 'line', label: `${Y - 1}년`, borderColor: css('--ink'), backgroundColor: css('--ink'), borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, tension: .3, data: sumBy(base.filter(r => r.연 === Y - 1)) }] },
     options: { scales: { x: { ...xA, stacked: true }, y: { ...yA(), stacked: true } } } });
 }

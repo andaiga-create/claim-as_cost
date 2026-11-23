@@ -60,3 +60,7 @@ header p{color:var(--mute);margin-top:3px;font-size:13px}
 .ddfoot{display:flex;gap:6px;margin-top:8px;border-top:1px solid var(--line);padding-top:8px}
 .ddfoot button{flex:1;font:inherit;font-size:12px;font-weight:600;border:1px solid var(--chipline);background:var(--chip);color:var(--ink2);border-radius:8px;padding:5px;cursor:pointer}
 .grp.dd .gh a{cursor:pointer}
+
+.grp.g-월 .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.grp.g-월 .chip{padding:5px 0;text-align:center;border-radius:10px}
+.chip:disabled{opacity:.35;cursor:default;pointer-events:none}
