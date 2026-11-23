@@ -24,6 +24,14 @@ def month_of(path):
     return m.group(1) if m else None
 
 
+def load_settings():
+    try:
+        with open(os.path.join(ROOT, "docs", "settings.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
 def load_raw():
     files = sorted(glob.glob(os.path.join(RAW_DIR, "*.xls")), key=lambda p: (month_of(p) is not None, month_of(p) or ""))
     df = pd.DataFrame()
@@ -57,26 +65,38 @@ def split_code(code):
 def main():
     raw, lst = load_raw(), load_list()
 
-    # list 조회: 엑셀 VLOOKUP(범위 조회, 3번째 인수 생략)과 동일하게 근사 일치(이진 탐색)로 재현
-    keys = lst["접수번호"].str.lower().tolist()
+    # list 조회 방식 (docs/settings.json 의 lookup_mode)
+    #   excel : 엑셀 VLOOKUP(3번째 인수 생략 = 근사 일치)과 동일하게 재현 (엑셀과 숫자가 같음, 행이 늘면 과거 분류가 바뀔 수 있음)
+    #   exact : A/S번호가 정확히 같은 접수 건만 연결 (안정적, 못 찾으면 미분류)
+    mode = load_settings().get("lookup_mode", "excel")
+    if mode not in ("excel", "exact"):
+        print(f"[경고] lookup_mode '{mode}' 를 알 수 없어 excel 로 처리합니다.")
+        mode = "excel"
+    cols = [("불량코드", "불량코드"), ("불량명칭", "불량명칭"), ("유무상", "유상구분")]
+    if mode == "exact":
+        key = lst.drop_duplicates("접수번호", keep="last").set_index("접수번호")
+        for col, src in cols:
+            raw[col] = raw["A/S번호"].map(key[src])
+    else:
+        keys = lst["접수번호"].str.lower().tolist()
 
-    def approx_idx(x):
-        lo, hi = 0, len(keys) - 1
-        x = str(x).lower()
-        while lo <= hi:
-            mid = (lo + hi) // 2
-            if keys[mid] == x:  # 엑셀은 탐색 중 정확 일치를 만나면 그 행을 반환 (엑셀 결과와 100% 일치 확인)
-                return mid
-            if keys[mid] < x:
-                lo = mid + 1
-            else:
-                hi = mid - 1
-        return hi  # -1 이면 #N/A
+        def approx_idx(x):
+            lo, hi = 0, len(keys) - 1
+            x = str(x).lower()
+            while lo <= hi:
+                mid = (lo + hi) // 2
+                if keys[mid] == x:  # 엑셀은 탐색 중 정확 일치를 만나면 그 행을 반환 (엑셀 결과와 100% 일치 확인)
+                    return mid
+                if keys[mid] < x:
+                    lo = mid + 1
+                else:
+                    hi = mid - 1
+            return hi  # -1 이면 #N/A
 
-    idx = raw["A/S번호"].map(approx_idx)
-    for col, src in [("불량코드", "불량코드"), ("불량명칭", "불량명칭"), ("유무상", "유상구분")]:
-        vals = lst[src].tolist()
-        raw[col] = idx.map(lambda i: vals[i] if i >= 0 else None)
+        idx = raw["A/S번호"].map(approx_idx)
+        for col, src in cols:
+            vals = lst[src].tolist()
+            raw[col] = idx.map(lambda i: vals[i] if i >= 0 else None)
     lst = lst.drop_duplicates("접수번호", keep="last")  # 이후 접수 건수 집계용
     raw["유무상"] = raw["유무상"].str.replace(r"^\d\s*", "", regex=True)
 
@@ -108,6 +128,7 @@ def main():
     out = {
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "latest": raw["_dt"].max().strftime("%Y-%m-%d"),
+        "lookup_mode": mode,
         "dims": dims,
         "rows": g[dims + ["공급가", "건수"]].values.tolist(),
         "receipts": lg.values.tolist(),
@@ -117,6 +138,7 @@ def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"), default=lambda o: o.item() if hasattr(o, "item") else str(o))
+    print(f"조회 방식: {mode}")
     print(f"raw {len(raw)}행, list {len(lst)}행 -> {len(g)}개 집계행, {OUT}")
     print(raw.pivot_table(index="연", columns="구분", values="공급가", aggfunc="sum", margins=True).round(0).to_string())
     print(raw[raw["유무상"] == "무상"].pivot_table(index="연", columns="구분", values="공급가", aggfunc="sum").round(0).to_string())

@@ -52,7 +52,7 @@ async function init() {
   SEL = DEFAULTS();
   buildCustDD();
   $('#reset').onclick = () => { SEL = DEFAULTS(); render(); };
-  $('#foot').innerHTML = `데이터 기준일<br><b>${d.latest}</b><br>갱신 ${d.generated}`;
+  $('#foot').innerHTML = `데이터 기준일<br><b>${d.latest}</b><br>갱신 ${d.generated}<br>접수 조회: ${d.lookup_mode === 'exact' ? '정확 일치' : '엑셀 방식'}`;
   Chart.defaults.font.family = 'Pretendard Variable, Pretendard, "Malgun Gothic", sans-serif';
   if (SHOT) Chart.defaults.animation = false;
   render();
