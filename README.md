@@ -28,7 +28,7 @@ ERP에서 해당 월 자료를 내려받아 **파일명을 아래 형식으로 �
 ### ③ `update.bat` 실행
 프로젝트 폴더의 **`update.bat`을 더블클릭**합니다. 순서대로 자동 수행됩니다.
 
-1. xls 변환 → `docs/data.json` 생성 + **엑셀 보고서 생성** (`엑셀보고서/CLAIM_AS_보고서_YYYYMM.xlsx`)
+1. xls 변환 → `docs/data.json` 생성 + **엑셀 보고서 생성** (`엑셀보고서/CLAIM_AS_보고서_YYYYMM.xlsx`, 아래 2-1)
 2. `git commit`
 3. `git push` (GitHub 업로드)
 
@@ -44,7 +44,7 @@ ERP에서 해당 월 자료를 내려받아 **파일명을 아래 형식으로 �
 README.md
 update.bat              # 변환 + 업로드 (더블클릭)
 scripts/build_data.py   # xls → docs/data.json 변환
-scripts/build_excel.py  # 엑셀 보고서 생성
+scripts/build_excel.py  # 엑셀 보고서(원본 데이터 + 새 파일) 생성
 data/                   # 원본 xls (PC에만 보관, GitHub 에는 올라가지 않음)
   raw_data/             #   as_claim_raw_data.xls(누적) + _YYYYMM.xls(월별)
   as_list/              #   as_list_2020-20260228.xls(누적) + _YYYYMM.xls(월별)
@@ -62,22 +62,21 @@ docs/                   # 웹사이트 (GitHub Pages 가 이 폴더를 게시)
 
 ## 2-1. 엑셀 보고서 (`엑셀보고서/CLAIM_AS_보고서_YYYYMM.xlsx`)
 
-`update.bat` 을 실행할 때마다 웹과 **같은 데이터·같은 규칙**으로 새로 만들어집니다. (기존 `CLAIM_AS_보고서_…xlsx` 는 건드리지 않습니다.)
+`update.bat` 을 실행하면 **기존 엑셀 보고서를 복사한 새 파일**이 만들어집니다. 피벗테이블·슬라이서·차트·데이터 모델·dashboard 는 그대로이고, 아래 3가지만 바뀝니다.
 
-| 시트 | 내용 |
-|---|---|
-| `dashboard` | KPI 5종 + 차트 (연도별·월별·누적·호선·장비·거래처·불량명칭·고객·선종) |
-| `집계` | 연도별/월별/순위 표. 금액은 모두 `raw` 시트를 `SUMIFS` 로 다시 계산하는 수식 |
-| `raw` | 매입 내역. 불량코드·불량명칭·유/무상은 `list` 정확 일치 조회 수식, 고객/호선/장비/선종/구분도 수식 |
-| `list` | 접수 목록 (조회 대상) |
-| `매출액` | `settings.json` 의 연도별 매출 |
-| `미분류` | 접수 목록에서 못 찾았거나 불량코드가 없는 건 (ERP 확인용) |
-| `설명` | 집계 규칙, VLOOKUP 수정 방법 |
+1. **파워쿼리 원본 데이터 생성** — 웹과 같은 최종 데이터(월별 병합, 같은 월 재업로드 교체, A/S번호 하이픈 보정 반영)를 쿼리가 읽는 형식으로 저장합니다.
+   - `엑셀보고서/raw_data/as_claim_raw_data.xlsx`, `엑셀보고서/as_list/as_list.xlsx`
+   - 새 보고서의 쿼리 원본 폴더(기존 `Z:\...aw_data`, `as_list`)가 위 두 폴더로 바뀌어 있습니다.
+2. **VLOOKUP 오류 수정** — raw 시트의 불량코드·불량명칭·유/무상 조회를 `IFERROR(VLOOKUP(…,FALSE),"미분류")`(정확 일치)로 바꿉니다. 웹과 같은 금액이 나옵니다.
+3. 파일 열 때 수식을 다시 계산하도록 설정
 
-- 기본 집계 조건은 웹 기본값(무상 · A/S+CLAIM · 상선+특수선)과 같습니다. 다른 조건은 `raw` 시트의 표 필터나 피벗으로 보면 됩니다.
-- 접수 목록 조회는 `MATCH(…,0)` 정확 일치입니다. 기존 보고서의 `VLOOKUP`(4번째 인수 없음, 근사 일치) 오류가 없어서 웹과 금액이 같습니다.
-- `docs/settings.json` 의 `lookup_mode` 가 `excel` 이면 엑셀 근사 일치를 재현합니다.
-- 필요한 패키지: `pip install pandas xlrd xlsxwriter` (update.bat 이 자동 설치). 엑셀 파일만 건너뛰려면 `python scriptsuild_data.py --no-excel`.
+**새 보고서를 연 뒤 [데이터] → [모두 새로 고침]** 을 한 번 눌러야 raw/list 와 피벗이 새 데이터로 바뀝니다. (파일을 만들 때는 이전 데이터가 들어 있고, 개인 정보 수준 확인 창이 뜨면 허용)
+
+- 기준 파일: `엑셀보고서/` 와 프로젝트 폴더의 `CLAIM_AS_보고서_*.xlsx` 중 **가장 최근에 수정한 파일**. dashboard 를 직접 고쳐 저장해 두면 다음 달에는 그 파일이 기준이 됩니다.
+- 같은 달에 `update.bat` 을 다시 실행하면 기존 파일은 `엑셀보고서/백업/` 으로 옮겨집니다. 새 보고서가 엑셀에서 열려 있으면 닫고 실행하세요.
+- 기준 보고서가 없으면 원본 데이터 파일만 만들고 새 보고서는 만들지 않습니다.
+- `lookup_mode` 가 `excel` 이면 VLOOKUP 은 수정하지 않습니다.
+- 필요한 패키지: `pip install pandas xlrd xlsxwriter` (update.bat 이 자동 설치). 엑셀 단계만 건너뛰려면 `python scriptsuild_data.py --no-excel`.
 
 ---
 

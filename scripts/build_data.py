@@ -33,11 +33,16 @@ def load_settings():
         return {}
 
 
+RAW_COLS, LIST_COLS = [], []  # 원본 xls 의 열 순서 (엑셀 파워쿼리용 파일 생성에 사용)
+
+
 def load_raw():
     files = sorted(glob.glob(os.path.join(RAW_DIR, "*.xls")), key=lambda p: (month_of(p) is not None, month_of(p) or ""))
     df = pd.DataFrame()
     for f in files:
         d = read_xls(f)
+        if not RAW_COLS:
+            RAW_COLS.extend(d.columns)
         d = d[d["A/S번호"].notna() & d["입고일자"].notna()].copy()
         d["_dt"] = pd.to_datetime(d["입고일자"], errors="coerce")
         d = d[d["_dt"].notna()]
@@ -54,6 +59,7 @@ def load_raw():
 def load_list():
     files = sorted(glob.glob(os.path.join(LIST_DIR, "*.xls")))
     df = pd.concat([read_xls(f) for f in files], ignore_index=True)  # 엑셀 list 시트와 같은 순서(파일명순)
+    LIST_COLS[:] = list(df.columns)
     df["_dt"] = pd.to_datetime(df["접수일자"], errors="coerce")
     return df
 
@@ -150,15 +156,14 @@ def main():
     print(raw.pivot_table(index="연", columns="구분", values="공급가", aggfunc="sum", margins=True).round(0).to_string())
     print(raw[raw["유무상"] == "무상"].pivot_table(index="연", columns="구분", values="공급가", aggfunc="sum").round(0).to_string())
 
-    # 엑셀 보고서 (엑셀보고서/CLAIM_AS_보고서_YYYYMM.xlsx)
+    # 엑셀 보고서: 파워쿼리용 원본 파일 + 기존 보고서를 복사한 새 파일 (엑셀보고서/)
     if "--no-excel" not in sys.argv:
         try:
             import build_excel
         except ImportError as e:
             print(f"[경고] 엑셀 보고서를 만들지 못했습니다 (pip install xlsxwriter): {e}")
             return
-        xl = build_excel.write(ROOT, raw, lk, lst, mode, load_settings(), out["latest"])
-        print(f"엑셀 보고서: {xl}")
+        build_excel.run(ROOT, raw, RAW_COLS, lk, LIST_COLS, mode, out["latest"])
 
 
 if __name__ == "__main__":
