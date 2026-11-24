@@ -8,22 +8,22 @@ echo ==========================================
 rem --- 1. find a python that has pandas + xlrd (several pythons may be installed) ---
 set "PY="
 for /f "delims=" %%P in ('where python 2^>nul') do (
-  if not defined PY ("%%P" -c "import pandas, xlrd" >nul 2>&1 && set "PY=%%P")
+  if not defined PY ("%%P" -c "import pandas, xlrd, xlsxwriter" >nul 2>&1 && set "PY=%%P")
 )
 if not defined PY (
-  py -3 -c "import pandas, xlrd" >nul 2>&1 && set "PY=py -3"
+  py -3 -c "import pandas, xlrd, xlsxwriter" >nul 2>&1 && set "PY=py -3"
 )
 if not defined PY (
   echo [!] pandas/xlrd not found. Installing...
   for /f "delims=" %%P in ('where python 2^>nul') do (
-    if not defined PY ("%%P" -m pip install pandas xlrd && "%%P" -c "import pandas, xlrd" >nul 2>&1 && set "PY=%%P")
+    if not defined PY ("%%P" -m pip install pandas xlrd xlsxwriter && "%%P" -c "import pandas, xlrd, xlsxwriter" >nul 2>&1 && set "PY=%%P")
   )
 )
 if not defined PY (
-  echo [ERROR] No usable Python. Install Python 3 then run: pip install pandas xlrd
+  echo [ERROR] No usable Python. Install Python 3 then run: pip install pandas xlrd xlsxwriter
   goto :fail
 )
-echo [1/3] Converting xls to docs\data.json  (python: %PY%)
+echo [1/3] Converting xls to docs\data.json + excel report  (python: %PY%)
 %PY% -W ignore scripts\build_data.py
 if errorlevel 1 (
   echo [ERROR] Conversion failed. Check the xls files in the data folder.

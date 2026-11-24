@@ -28,13 +28,13 @@ ERP에서 해당 월 자료를 내려받아 **파일명을 아래 형식으로 �
 ### ③ `update.bat` 실행
 프로젝트 폴더의 **`update.bat`을 더블클릭**합니다. 순서대로 자동 수행됩니다.
 
-1. xls 변환 → `docs/data.json` 생성
+1. xls 변환 → `docs/data.json` 생성 + **엑셀 보고서 생성** (`엑셀보고서/CLAIM_AS_보고서_YYYYMM.xlsx`)
 2. `git commit`
 3. `git push` (GitHub 업로드)
 
 "Done" 메시지가 나오면 완료입니다. **1~2분 뒤** 사이트에서 `Ctrl+F5`로 새로고침하세요.
 
-> 변환 결과만 점검하고 싶으면 명령 프롬프트에서 `update.bat build` 로 실행합니다. (git 업로드 생략)
+> 변환 결과만 점검하고 싶으면 명령 프롬프트에서 `update.bat build` 로 실행합니다. (git 업로드 생략, 엑셀 보고서는 생성됨)
 
 ---
 
@@ -44,9 +44,11 @@ ERP에서 해당 월 자료를 내려받아 **파일명을 아래 형식으로 �
 README.md
 update.bat              # 변환 + 업로드 (더블클릭)
 scripts/build_data.py   # xls → docs/data.json 변환
+scripts/build_excel.py  # 엑셀 보고서 생성
 data/                   # 원본 xls (PC에만 보관, GitHub 에는 올라가지 않음)
   raw_data/             #   as_claim_raw_data.xls(누적) + _YYYYMM.xls(월별)
   as_list/              #   as_list_2020-20260228.xls(누적) + _YYYYMM.xls(월별)
+엑셀보고서/              # update.bat 이 만드는 엑셀 보고서 (GitHub 에는 올라가지 않음)
 docs/                   # 웹사이트 (GitHub Pages 가 이 폴더를 게시)
   index.html, style.css, app.js
   data.json             #   변환 결과(집계값)
@@ -55,6 +57,27 @@ docs/                   # 웹사이트 (GitHub Pages 가 이 폴더를 게시)
 
 - `data/` 폴더는 `.gitignore` 로 제외되어 **원본 xls는 업로드되지 않습니다.** 사이트에는 집계값(`data.json`)만 공개됩니다.
 - GitHub Pages 설정: Settings → Pages → Branch `main` / 폴더 `/docs`.
+
+---
+
+## 2-1. 엑셀 보고서 (`엑셀보고서/CLAIM_AS_보고서_YYYYMM.xlsx`)
+
+`update.bat` 을 실행할 때마다 웹과 **같은 데이터·같은 규칙**으로 새로 만들어집니다. (기존 `CLAIM_AS_보고서_…xlsx` 는 건드리지 않습니다.)
+
+| 시트 | 내용 |
+|---|---|
+| `dashboard` | KPI 5종 + 차트 (연도별·월별·누적·호선·장비·거래처·불량명칭·고객·선종) |
+| `집계` | 연도별/월별/순위 표. 금액은 모두 `raw` 시트를 `SUMIFS` 로 다시 계산하는 수식 |
+| `raw` | 매입 내역. 불량코드·불량명칭·유/무상은 `list` 정확 일치 조회 수식, 고객/호선/장비/선종/구분도 수식 |
+| `list` | 접수 목록 (조회 대상) |
+| `매출액` | `settings.json` 의 연도별 매출 |
+| `미분류` | 접수 목록에서 못 찾았거나 불량코드가 없는 건 (ERP 확인용) |
+| `설명` | 집계 규칙, VLOOKUP 수정 방법 |
+
+- 기본 집계 조건은 웹 기본값(무상 · A/S+CLAIM · 상선+특수선)과 같습니다. 다른 조건은 `raw` 시트의 표 필터나 피벗으로 보면 됩니다.
+- 접수 목록 조회는 `MATCH(…,0)` 정확 일치입니다. 기존 보고서의 `VLOOKUP`(4번째 인수 없음, 근사 일치) 오류가 없어서 웹과 금액이 같습니다.
+- `docs/settings.json` 의 `lookup_mode` 가 `excel` 이면 엑셀 근사 일치를 재현합니다.
+- 필요한 패키지: `pip install pandas xlrd xlsxwriter` (update.bat 이 자동 설치). 엑셀 파일만 건너뛰려면 `python scriptsuild_data.py --no-excel`.
 
 ---
 
@@ -88,6 +111,7 @@ docs/                   # 웹사이트 (GitHub Pages 가 이 폴더를 게시)
 - **불량코드 / 불량명칭 / 유·무상**: A/S번호로 접수 목록(`as_list`)을 조회
 - **A/S · CLAIM 구분**: 불량코드가 `A`로 시작하면 A/S, `C`로 시작하면 CLAIM, 그 외 미분류
 - 대시보드 기본 필터: 최신 연도 · 무상 · A/S+CLAIM · 상선+특수선 (엑셀 피벗과 같은 조건)
+- 좌측 월(1~12월) 버튼: 여러 달 선택 가능, 선택한 연도에 데이터가 없는 달은 비활성. 월 추이 차트는 항상 12개월을 보여주고 선택하지 않은 달만 흐리게 표시
 
 ### 접수 목록 조회 방식 (`lookup_mode`)
 
@@ -119,7 +143,7 @@ docs/                   # 웹사이트 (GitHub Pages 가 이 폴더를 게시)
 현재 130건 중 약 100건이 2017~2019년 접수번호입니다. 접수 목록이 2020년부터라서 생깁니다.
 **2019년 이전 접수 목록(`as_list_YYYY.xls`)을 `data/as_list/` 에 추가**하면 연결되어 미분류가 줄어듭니다.
 
-엑셀 보고서를 정확 일치로 맞추려면 `raw` 시트의 조회 수식 3곳(불량코드·불량명칭·유/무상)에 `FALSE` 를 붙입니다.
+`update.bat` 이 만드는 엑셀 보고서는 이미 정확 일치로 수정돼 있습니다. 기존 보고서를 직접 고치려면 `raw` 시트의 조회 수식 3곳(불량코드·불량명칭·유/무상)에 `FALSE` 를 붙입니다.
 
 ```
 =IFERROR(VLOOKUP(raw_data[[#This Row],[A/S번호]],as_list[],5,FALSE),"미분류")   ' 불량코드

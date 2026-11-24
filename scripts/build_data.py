@@ -9,6 +9,7 @@ from datetime import datetime
 import pandas as pd
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 RAW_DIR = os.path.join(ROOT, "data", "raw_data")
 LIST_DIR = os.path.join(ROOT, "data", "as_list")
 OUT = os.path.join(ROOT, "docs", "data.json")
@@ -76,9 +77,11 @@ def main():
         mode = "excel"
     cols = [("불량코드", "불량코드"), ("불량명칭", "불량명칭"), ("유무상", "유상구분")]
     if mode == "exact":
-        key = lst.drop_duplicates("접수번호", keep="last").set_index("접수번호")
+        lk = lst.drop_duplicates("접수번호", keep="last").reset_index(drop=True)
+        key = lk.set_index("접수번호")
         for col, src in cols:
             raw[col] = raw["A/S번호"].map(key[src])
+        raw["_lidx"] = raw["A/S번호"].map({k: i for i, k in enumerate(lk["접수번호"])}).fillna(-1).astype(int)
     else:
         keys = lst["접수번호"].str.lower().tolist()
 
@@ -95,7 +98,9 @@ def main():
                     hi = mid - 1
             return hi  # -1 이면 #N/A
 
+        lk = lst
         idx = raw["A/S번호"].map(approx_idx)
+        raw["_lidx"] = idx
         for col, src in cols:
             vals = lst[src].tolist()
             raw[col] = idx.map(lambda i: vals[i] if i >= 0 else None)
@@ -144,6 +149,16 @@ def main():
     print(f"raw {len(raw)}행, list {len(lst)}행 -> {len(g)}개 집계행, {OUT}")
     print(raw.pivot_table(index="연", columns="구분", values="공급가", aggfunc="sum", margins=True).round(0).to_string())
     print(raw[raw["유무상"] == "무상"].pivot_table(index="연", columns="구분", values="공급가", aggfunc="sum").round(0).to_string())
+
+    # 엑셀 보고서 (엑셀보고서/CLAIM_AS_보고서_YYYYMM.xlsx)
+    if "--no-excel" not in sys.argv:
+        try:
+            import build_excel
+        except ImportError as e:
+            print(f"[경고] 엑셀 보고서를 만들지 못했습니다 (pip install xlsxwriter): {e}")
+            return
+        xl = build_excel.write(ROOT, raw, lk, lst, mode, load_settings(), out["latest"])
+        print(f"엑셀 보고서: {xl}")
 
 
 if __name__ == "__main__":
