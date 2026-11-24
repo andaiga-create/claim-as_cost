@@ -77,7 +77,7 @@ aw_data`, `as_list`)가 위 두 폴더로 바뀌어 있습니다.
 - 같은 달에 `update.bat` 을 다시 실행하면 기존 파일은 `엑셀보고서/백업/` 으로 옮겨집니다. 새 보고서가 엑셀에서 열려 있으면 닫고 실행하세요.
 - 기준 보고서가 없으면 원본 데이터 파일만 만들고 새 보고서는 만들지 않습니다.
 - `lookup_mode` 가 `excel` 이면 VLOOKUP 은 수정하지 않습니다.
-- 필요한 패키지: `pip install pandas xlrd xlsxwriter` (update.bat 이 자동 설치). 엑셀 단계만 건너뛰려면 `python scriptsuild_data.py --no-excel`.
+- 필요한 패키지: `pip install pandas xlrd xlsxwriter` (update.bat 이 자동 설치). 엑셀 단계만 건너뛰려면 `python scripts\build_data.py --no-excel`.
 
 ---
 
